@@ -1,0 +1,80 @@
+{
+    "6217166114": {
+        "template": "S-{season}-Ep-{episode}",
+        "thumbnail": {
+            "file_id": "AgACAgUAAxkBAAIGaWiPAnoeCC7kcCcph2UwGUE9jIdKAAL6xzEbZ3F5VHPqHCnBHhIjAAgBAAMCAAN5AAceBA",
+            "path": "C:\\Users\\L&C Bazaar\\Desktop\\Rename_Bot.py\\thumbnail\\thumb_6217166114_1754202746.jpg"
+        },
+        "intro": null,
+        "mode": "Auto Rename",
+        "send_as": "file",
+        "metadata": {
+            "title": "Alpha Zenin",
+            "audio_language": "Japanese",
+            "subtitle_language": "Japanese"
+        },
+        "filename_format": "[S-test-Ep-01] Title [480p][eng]@Animaxclan.mkv",
+        "audio_replacement": null,
+        "subtitle_file": null,
+        "watermark": {
+            "text": "Encoded by @Animaxclan",
+            "enabled": true
+        },
+        "sorting": {
+            "enabled": false,
+            "method": "resolution"
+        },
+        "dumb_channel": null
+    },
+    "7549459194": {
+        "template": "S-{season}-Ep-{episode}",
+        "thumbnail": null,
+        "intro": null,
+        "mode": "Auto Rename",
+        "send_as": "video",
+        "metadata": {
+            "title": "Alpha Zenin",
+            "audio_language": "Japanese",
+            "subtitle_language": "Japanese"
+        },
+        "filename_format": "[S-{season}-Ep-{episode}] Chuahi Lips [{resolution}][{audio}]@Animaxclan.mkv",
+        "audio_replacement": null,
+        "subtitle_file": null,
+        "watermark": {
+            "enabled": false,
+            "text": "Encoded by @Animaxclan"
+        },
+        "sorting": {
+            "enabled": false,
+            "method": "resolution"
+        },
+        "dumb_channel": null
+    },
+    "5373577888": {
+        "template": "S-{season}-Ep-{episode}",
+        "thumbnail": {
+            "file_id": "AgACAgUAAxkBAAIIu2iYiCSKTgKkqo1k80id9ix8k7-wAAIlyjEbVCiBVA6_UxTCi-LyAAgBAAMCAAN3AAceBA",
+            "path": "C:\\Users\\L&C Bazaar\\Desktop\\Rename_Bot.py\\thumbnail\\thumb_5373577888_1754826788.jpg"
+        },
+        "intro": null,
+        "mode": "Auto Rename",
+        "send_as": "file",
+        "metadata": {
+            "title": "Alpha Zenin",
+            "audio_language": "Japanese",
+            "subtitle_language": "Japanese"
+        },
+        "filename_format": "[S-{season}-Ep-{episode}] Title [{resolution}][{audio}]@Animaxclan.mkv",
+        "audio_replacement": null,
+        "subtitle_file": null,
+        "watermark": {
+            "enabled": false,
+            "text": "Encoded by @Animaxclan"
+        },
+        "sorting": {
+            "enabled": false,
+            "method": "resolution"
+        },
+        "dumb_channel": null
+    }
+}

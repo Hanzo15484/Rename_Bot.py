@@ -129,3 +129,13 @@ AUDIO_PATTERNS = [
     r'(japanese|jap)',
     r'(tamil|telugu|kannada)',
 ]
+
+# ARIA2 / DC4 config (add to config01.py)
+ARIA2C_PATH = "aria2c"                # path to aria2c binary
+ARIA2C_EXTRA_ARGS = "-x 16 -s 32 -j 32 --file-allocation=none"  # default aria2 args
+
+# DC4: set to True and provide your server upload URL if you have a DC4 / cloud mirror
+DC4_ENABLED = False
+DC4_UPLOAD_URL = "https://your-dc4.example/upload"   # HTTP endpoint that accepts file uploads and returns JSON { "url": "https://..." }
+DC4_UPLOAD_FIELD = "file"     # field name the DC4 server expects (POST multipart)
+DC4_API_KEY = ""              # optional API key if your DC4 needs auth — sent as header "Authorization: Bearer <key>"

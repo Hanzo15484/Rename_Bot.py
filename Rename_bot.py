@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from typing import Optional
 from datetime import datetime
 from config01 import *
-
+import shlex
+import aiohttp
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -419,6 +420,146 @@ class UserSettings:
 # Initialize User Settings Manager
 user_settings = UserSettings()
 
+# Use config values from config01
+ARIA2C_PATH = globals().get("ARIA2C_PATH", "aria2c")   # fallback if not in config01
+ARIA2C_EXTRA_ARGS = globals().get("ARIA2C_EXTRA_ARGS", "-x 16 -s 32 -j 32 --file-allocation=none")
+
+DC4_ENABLED = globals().get("DC4_ENABLED", False)
+DC4_UPLOAD_URL = globals().get("DC4_UPLOAD_URL", "")
+DC4_UPLOAD_FIELD = globals().get("DC4_UPLOAD_FIELD", "file")
+DC4_API_KEY = globals().get("DC4_API_KEY", "")
+
+async def run_aria2c(url: str, output_path: str, progress_cb=None, timeout=None):
+    """
+    Download `url` to `output_path` using aria2c CLI.
+    progress_cb(current_bytes, total_bytes) -> coroutine (optional).
+    Returns output_path on success, raises on error.
+    """
+    # build command
+    args = f"{ARIA2C_PATH} {ARIA2C_EXTRA_ARGS} -o {shlex.quote(os.path.basename(output_path))} -d {shlex.quote(os.path.dirname(output_path))} {shlex.quote(url)}"
+    logger.info(f"Starting aria2c: {args}")
+    proc = await asyncio.create_subprocess_shell(
+        args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT
+    )
+
+    total = 0
+    current = 0
+    start_ts = time.time()
+    try:
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            text = line.decode(errors="ignore").strip()
+            # Basic parsing: aria2 outputs lines like "[#...  10MiB/100MiB(10%) CN:8 DL:1.2MiB]"
+            # We'll try to extract total and current from "NNMiB/NNMiB"
+            m = re.search(r'([\d.]+)([KMGT]?iB)\/([\d.]+)([KMGT]?iB)', text)
+            if m:
+                cur_val, cur_unit, tot_val, tot_unit = m.groups()
+                def u_to_bytes(val, unit):
+                    val = float(val)
+                    unit = unit.lower()
+                    mul = 1
+                    if unit == 'kib': mul = 1024
+                    elif unit == 'mib': mul = 1024**2
+                    elif unit == 'gib': mul = 1024**3
+                    elif unit == 'tib': mul = 1024**4
+                    return int(val * mul)
+                try:
+                    current = u_to_bytes(cur_val, cur_unit)
+                    total = u_to_bytes(tot_val, tot_unit)
+                except Exception:
+                    pass
+                # call progress callback if given
+                if progress_cb:
+                    try:
+                        await progress_cb(current, total)
+                    except Exception as _:
+                        pass
+            # You can also log aria2 output for debugging
+            logger.debug(f"aria2c: {text}")
+
+        rc = await proc.wait()
+        if rc != 0:
+            raise RuntimeError(f"aria2c exited with code {rc}")
+        # verify file exists
+        if not os.path.exists(output_path):
+            raise FileNotFoundError(f"aria2c finished but file not found: {output_path}")
+        return output_path
+    except Exception:
+        try:
+            proc.kill()
+        except:
+            pass
+        raise
+
+async def dc4_upload(file_path: str) -> str:
+    """
+    Upload a local file to DC4_UPLOAD_URL via multipart/form-data.
+    Expects JSON response with 'url' field. Returns URL string.
+    Raises exception on failure.
+    """
+    if not DC4_ENABLED or not DC4_UPLOAD_URL:
+        raise RuntimeError("DC4 is not configured (DC4_ENABLED=False or DC4_UPLOAD_URL empty)")
+
+    headers = {}
+    if DC4_API_KEY:
+        headers["Authorization"] = f"Bearer {DC4_API_KEY}"
+
+    logger.info(f"Uploading {file_path} to DC4: {DC4_UPLOAD_URL}")
+    async with aiohttp.ClientSession() as session:
+        with open(file_path, "rb") as fh:
+            data = aiohttp.FormData()
+            data.add_field(DC4_UPLOAD_FIELD, fh, filename=os.path.basename(file_path), content_type="application/octet-stream")
+            async with session.post(DC4_UPLOAD_URL, data=data, headers=headers, timeout=3600) as resp:
+                txt = await resp.text()
+                if resp.status not in (200, 201):
+                    logger.error(f"DC4 upload failed: {resp.status} {txt}")
+                    raise RuntimeError(f"DC4 upload failed: {resp.status} {txt}")
+                try:
+                    j = await resp.json()
+                except Exception:
+                    # maybe DC4 returns plain url
+                    j = {"url": txt.strip()}
+                url = j.get("url") or j.get("file_url") or j.get("link") or None
+                if not url:
+                    # if response is a plain URL
+                    if txt.strip().startswith("http"):
+                        url = txt.strip()
+                if not url:
+                    logger.error(f"DC4 response missing URL: {j}")
+                    raise RuntimeError("DC4 upload returned no url")
+                logger.info(f"DC4 upload success: {url}")
+                return url
+
+# Helper to decide whether to use DC4 for a user
+def user_wants_dc4(user_id: int) -> bool:
+    try:
+        prefs = user_settings.get_user_settings(user_id)
+        return prefs.get("use_dc4", False) and DC4_ENABLED and bool(DC4_UPLOAD_URL)
+    except Exception:
+        return False
+
+# Simple commands to toggle user preference
+@app.on_message(filters.command("dc4"))
+async def dc4_command(client, message):
+    """Usage: /dc4 on | /dc4 off — toggles using DC4 to host files before sending"""
+    user_id = message.from_user.id
+    args = message.text.split()
+    if len(args) < 2:
+        cur = user_settings.get_user_settings(user_id).get("use_dc4", False)
+        await message.reply(f"DC4 is currently {'ON' if cur else 'OFF'} for you.\nUse `/dc4 on` or `/dc4 off` to change.")
+        return
+    if args[1].lower() in ("on", "yes", "1"):
+        user_settings.update_setting(user_id, "use_dc4", True)
+        await message.reply("✅ DC4 usage enabled for your uploads. Processed files will be uploaded to DC4 and Telegram will fetch them directly.")
+    else:
+        user_settings.update_setting(user_id, "use_dc4", False)
+        await message.reply("❌ DC4 usage disabled. Bot will upload files directly from this host.")
+
+# === END: aria2c + DC4 integration ===
 
 # --- Progress Tracking System ---
 class ProgressTracker:

@@ -1,7 +1,9 @@
 import os
+from dotenv import load_dotenv
 
 # Bot configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7549459194:AAEUh5HSxS56cOqGSFnUkF6w80n820UYlGY")
+load_dotenv("Bot_Token.env")  # Load variables from .env
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 API_ID = int(os.getenv("TELEGRAM_API_ID", "22471192"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "135380e8d132eb94f6a3ef14b6b576e6")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "5373577888"))
